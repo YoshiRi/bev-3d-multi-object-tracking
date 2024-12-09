@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "bev-3d-mot"
+version = "0.1.0"
+description = "3D multi object tracking for bev space"
+authors = ["yoshiri <yoshiyoshidetteiu@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
