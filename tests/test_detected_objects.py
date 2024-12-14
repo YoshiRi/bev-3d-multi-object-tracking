@@ -1,6 +1,6 @@
 # tests/test_detected_object.py
 import math
-from bev_3d_multi_object_tracking.common.detected_object_3d import (
+from bev_3d_multi_object_tracking.core.detected_object_3d import (
     Header, KinematicState, GeometricInfo, ObjectInfo, DetectedObject3D
 )
 

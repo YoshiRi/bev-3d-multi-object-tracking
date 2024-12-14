@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "bev-3d-mot"
+name = "bev_3d_multi-object-tracking"
 version = "0.1.0"
 description = "3D multi object tracking for bev space"
 authors = ["yoshiri <yoshiyoshidetteiu@gmail.com>"]
@@ -8,10 +8,10 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pytest = "<8.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
 pyyaml = "^6.0.2"
 lark = "^1.2.2"
 
