@@ -1,25 +1,27 @@
-from typing import Tuple, Optional
 import math
 import uuid
+from typing import Optional, Tuple
+
 
 class Header:
     def __init__(self, frame_id: str, timestamp: float):
         self.frame_id = frame_id
         self.timestamp = timestamp
 
+
 class KinematicState:
     def __init__(
         self,
         position: Tuple[float, float, float],
         orientation: Tuple[float, float, float, float],  # quaternion
-        position_covariance: Optional[Tuple[float,...]] = None,
-        orientation_covariance: Optional[Tuple[float,...]] = None,
+        position_covariance: Optional[Tuple[float, ...]] = None,
+        orientation_covariance: Optional[Tuple[float, ...]] = None,
         velocity: Optional[Tuple[float, float, float]] = None,
         angular_velocity: Optional[Tuple[float, float, float]] = None,
-        velocity_covariance: Optional[Tuple[float,...]] = None,
-        angular_velocity_covariance: Optional[Tuple[float,...]] = None,
+        velocity_covariance: Optional[Tuple[float, ...]] = None,
+        angular_velocity_covariance: Optional[Tuple[float, ...]] = None,
         acceleration: Optional[Tuple[float, float, float, float, float, float]] = None,
-        acceleration_covariance: Optional[Tuple[float,...]] = None,
+        acceleration_covariance: Optional[Tuple[float, ...]] = None,
     ):
         self.position = position
         self.orientation = orientation
@@ -34,14 +36,16 @@ class KinematicState:
 
     def get_yaw(self) -> float:
         x, y, z, w = self.orientation
-        siny_cosp = 2.0 * (w*z + x*y)
-        cosy_cosp = 1.0 - 2.0*(y*y + z*z)
+        siny_cosp = 2.0 * (w * z + x * y)
+        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
         return math.atan2(siny_cosp, cosy_cosp)
+
 
 class GeometricInfo:
     def __init__(self, dimensions: Tuple[float, float, float]):
         # dimensions: (length, width, height)
         self.dimensions = dimensions
+
 
 class ObjectInfo:
     def __init__(
@@ -50,7 +54,7 @@ class ObjectInfo:
         class_name: Optional[str] = None,
         is_stationary: bool = False,
         input_sensor: Optional[str] = None,
-        existence_probability: float = 1.0
+        existence_probability: float = 1.0,
     ):
         self.object_id = object_id if object_id is not None else str(uuid.uuid4())
         self.class_name = class_name
@@ -58,13 +62,14 @@ class ObjectInfo:
         self.input_sensor = input_sensor
         self.existence_probability = existence_probability
 
+
 class DetectedObject3D:
     def __init__(
         self,
         header: Header,
         kinematic_state: KinematicState,
         geometric_info: GeometricInfo,
-        object_info: ObjectInfo
+        object_info: ObjectInfo,
     ):
         self._header = header
         self._kinematic = kinematic_state
@@ -92,23 +97,25 @@ class DetectedObject3D:
     def get_input_sensor(self) -> Optional[str]:
         return self._info.input_sensor
 
-    def get_position(self) -> Tuple[float,float,float]:
+    def get_position(self) -> Tuple[float, float, float]:
         return self._kinematic.position
 
-    def get_orientation(self) -> Tuple[float,float,float,float]:
+    def get_orientation(self) -> Tuple[float, float, float, float]:
         return self._kinematic.orientation
 
     def get_yaw(self) -> float:
         return self._kinematic.get_yaw()
 
-    def get_velocity(self) -> Optional[Tuple[float,float,float]]:
+    def get_velocity(self) -> Optional[Tuple[float, float, float]]:
         return self._kinematic.velocity
 
-    def get_angular_velocity(self) -> Optional[Tuple[float,float,float]]:
+    def get_angular_velocity(self) -> Optional[Tuple[float, float, float]]:
         return self._kinematic.angular_velocity
 
-    def get_acceleration(self) -> Optional[Tuple[float,float,float,float,float,float]]:
+    def get_acceleration(
+        self,
+    ) -> Optional[Tuple[float, float, float, float, float, float]]:
         return self._kinematic.acceleration
 
-    def get_dimensions(self) -> Tuple[float,float,float]:
+    def get_dimensions(self) -> Tuple[float, float, float]:
         return self._geometric.dimensions
