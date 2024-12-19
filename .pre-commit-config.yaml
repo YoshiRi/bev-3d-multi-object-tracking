@@ -16,3 +16,10 @@ repos:
       - id: isort
         args:
           - "--profile=black"
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: poetry run pytest
+        language: system
+        pass_filenames: false
