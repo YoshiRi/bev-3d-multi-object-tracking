@@ -9,6 +9,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 pytest = "<8.1.0"
+numpy = "^2.2.1"
+scipy = "^1.14.1"
 
 
 [tool.poetry.group.dev.dependencies]
