@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from bev_3d_multi_object_tracking.common.detected_object_3d import DetectedObject3D
+from bev_3d_multi_object_tracking.core.detected_object_3d import DetectedObject3D
 
 
 class BaseFilter(ABC):
