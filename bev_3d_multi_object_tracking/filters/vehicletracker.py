@@ -2,7 +2,7 @@ import math
 from typing import Optional
 
 import numpy as np
-from bev_3d_multi_object_tracking.common.detected_object_3d import (
+from bev_3d_multi_object_tracking.core.detected_object_3d import (
     DetectedObject3D,
     GeometricInfo,
     Header,
