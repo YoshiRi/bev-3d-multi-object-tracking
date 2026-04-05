@@ -30,13 +30,18 @@ class DummyFilter(BaseFilter):
         ori = detection.get_orientation()
         return KinematicState(position=pos, orientation=ori)
 
-    def predict(self, current_state, dt: float):
-        return current_state
+    def predict(self, filter_state, dt: float):
+        return filter_state
 
-    def update(self, current_state, detection: DetectedObject3D):
+    def update(self, filter_state, detection: DetectedObject3D):
         pos = detection.get_position()
         ori = detection.get_orientation()
         return KinematicState(position=pos, orientation=ori)
+
+    def to_kinematic_state(self, filter_state) -> KinematicState:
+        if isinstance(filter_state, KinematicState):
+            return filter_state
+        return KinematicState(position=(0.0, 0.0, 0.0), orientation=(0.0, 0.0, 0.0, 1.0))
 
 
 #
