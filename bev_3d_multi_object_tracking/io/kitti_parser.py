@@ -159,6 +159,7 @@ class KittiTrackingParser(BaseParser):
                 dimensions=(box.l, box.w, box.h),
             ),
             object_info=ObjectInfo(
+                object_id=str(box.track_id),
                 class_name=box.type,
             ),
         )
