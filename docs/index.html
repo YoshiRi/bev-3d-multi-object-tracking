@@ -222,6 +222,52 @@
     .legend-swatch.conf    { border-color: hsl(200,75%,62%); background: transparent; }
     .legend-swatch.unconf  { border-color: hsl(200,40%,48%); border-style: dashed; background: transparent; }
 
+    /* ---- Data source toggle ---- */
+    .source-toggle {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .source-toggle label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.82rem;
+      color: #c9d1d9;
+      cursor: pointer;
+    }
+    .source-toggle input[type=radio] { accent-color: #388bfd; cursor: pointer; }
+
+    /* ---- File input ---- */
+    .file-label {
+      display: block;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-align: center;
+      transition: background .15s;
+    }
+    .file-label:hover { background: #30363d; }
+    #kitti-file { display: none; }
+    #kitti-filename {
+      font-size: 0.72rem;
+      color: #8b949e;
+      font-family: monospace;
+      margin-top: 5px;
+      word-break: break-all;
+      min-height: 1em;
+    }
+    .kitti-hint {
+      font-size: 0.68rem;
+      color: #6e7681;
+      margin-top: 5px;
+      line-height: 1.5;
+    }
+
     /* ---- Scrollbar ---- */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0d1117; }
@@ -241,7 +287,36 @@
   <!-- ===== Controls ===== -->
   <aside class="controls">
 
+    <!-- Data source -->
     <div>
+      <h2>データソース</h2>
+      <div class="source-toggle">
+        <label>
+          <input type="radio" name="datasource" value="synthetic" checked> 合成データ
+        </label>
+        <label>
+          <input type="radio" name="datasource" value="kitti"> KITTI ファイル
+        </label>
+      </div>
+    </div>
+
+    <!-- KITTI file input (hidden until selected) -->
+    <div id="kitti-controls" style="display:none;">
+      <h2>KITTI ラベルファイル</h2>
+      <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+        <label class="file-label" for="kitti-file">📂 ファイルを選択</label>
+        <input type="file" id="kitti-file" accept=".txt">
+        <div id="kitti-filename">未選択</div>
+        <p class="kitti-hint">
+          KITTI Tracking Benchmark<br>
+          training/label_02/*.txt<br>
+          ※ファイルはブラウザ内でのみ処理
+        </p>
+      </div>
+    </div>
+
+    <!-- Synthetic scenario (shown by default) -->
+    <div id="synthetic-controls">
       <h2>シナリオ</h2>
       <div class="param-group" style="margin-top:8px;">
         <div class="param-row">

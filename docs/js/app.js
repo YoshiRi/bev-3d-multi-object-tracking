@@ -13,12 +13,14 @@
 // State
 // -------------------------------------------------------------------------
 let pyodide      = null;
-let simData      = null;   // parsed JSON from run_demo
+let simData      = null;   // parsed JSON from run_demo / run_demo_kitti
 let frameIdx     = 0;
 let playing      = false;
 let playTimer    = null;
 let playFps      = 10;
 let trails       = {};
+let kittiContent = null;   // raw text of the loaded KITTI label file
+let dataSource   = 'synthetic';
 
 const canvas     = document.getElementById('bev-canvas');
 
@@ -69,18 +71,35 @@ function getParams() {
 async function runSimulation() {
   if (!pyodide) return;
 
+  if (dataSource === 'kitti' && !kittiContent) {
+    setStatus('KITTIファイルを選択してください');
+    return;
+  }
+
   pausePlayback();
   document.getElementById('run-btn').disabled = true;
   setStatus('シミュレーション実行中…');
 
   try {
     const params = getParams();
-    // Pass params via globals to avoid any quoting/escaping issues
     pyodide.globals.set('_demo_params', JSON.stringify(params));
 
-    // Call Python in a microtask so the UI can update
-    const resultJson = await pyodide.runPythonAsync('run_demo(_demo_params)');
+    let resultJson;
+    if (dataSource === 'kitti') {
+      pyodide.globals.set('_kitti_content', kittiContent);
+      resultJson = await pyodide.runPythonAsync(
+        'run_demo_kitti(_kitti_content, _demo_params)'
+      );
+    } else {
+      resultJson = await pyodide.runPythonAsync('run_demo(_demo_params)');
+    }
     simData = JSON.parse(resultJson);
+
+    if (simData.error) {
+      setStatus('エラー: ' + simData.error);
+      document.getElementById('run-btn').disabled = false;
+      return;
+    }
 
     frameIdx = 0;
     trails = {};
@@ -219,6 +238,34 @@ function setStatus(msg) {
 }
 
 // -------------------------------------------------------------------------
+// Data source toggle & KITTI file loading
+// -------------------------------------------------------------------------
+function onDataSourceChange(e) {
+  dataSource = e.target.value;
+  document.getElementById('synthetic-controls').style.display =
+    dataSource === 'synthetic' ? '' : 'none';
+  document.getElementById('kitti-controls').style.display =
+    dataSource === 'kitti' ? '' : 'none';
+}
+
+function onKittiFileChange(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  document.getElementById('kitti-filename').textContent = file.name;
+  setStatus('ファイルを読み込み中…');
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    kittiContent = ev.target.result;
+    const lines = kittiContent.split('\n').filter(l => l.trim()).length;
+    setStatus(`読み込み完了 — ${lines} 行`);
+  };
+  reader.onerror = () => setStatus('ファイル読み込みエラー');
+  reader.readAsText(file);
+}
+
+// -------------------------------------------------------------------------
 // Boot
 // -------------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
@@ -230,6 +277,11 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('step-fwd-btn') .addEventListener('click', stepForward);
   document.getElementById('frame-slider') .addEventListener('input', onSliderInput);
   document.getElementById('speed-select') .addEventListener('change', onSpeedChange);
+
+  document.querySelectorAll('input[name="datasource"]').forEach(
+    el => el.addEventListener('change', onDataSourceChange)
+  );
+  document.getElementById('kitti-file').addEventListener('change', onKittiFileChange);
 
   initPyodide();
 });

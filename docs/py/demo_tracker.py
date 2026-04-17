@@ -694,3 +694,189 @@ def run_demo(params_json: str) -> str:
             "total_gt":   metrics["total_gt"],
         },
     })
+
+
+# ===========================================================================
+# KITTI file support
+# ===========================================================================
+
+_KITTI_VALID_TYPES = {
+    "Car", "Van", "Truck", "Pedestrian", "Person_sitting",
+    "Cyclist", "Tram", "Misc",
+}
+
+
+def _parse_kitti_text(content: str) -> Dict[int, List[dict]]:
+    """
+    Parse KITTI tracking label file content (string) into a dict of
+    {frame_idx: [box_dict, ...]}.
+
+    Each box_dict has keys: track_id, class_name, x, y, yaw, length, width, height
+    (already converted to BEV coordinates).
+    """
+    frames: Dict[int, List[dict]] = {}
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        tokens = line.split()
+        if len(tokens) < 17:
+            continue
+        try:
+            frame    = int(tokens[0])
+            track_id = int(tokens[1])
+            type_    = tokens[2]
+            if type_ not in _KITTI_VALID_TYPES:
+                continue
+            h     = float(tokens[10])
+            w     = float(tokens[11])
+            l     = float(tokens[12])
+            x_cam = float(tokens[13])
+            y_cam = float(tokens[14])
+            z_cam = float(tokens[15])
+            ry    = float(tokens[16])
+        except (ValueError, IndexError):
+            continue
+
+        # Camera → BEV coordinate conversion (same as KittiTrackingParser)
+        frames.setdefault(frame, []).append({
+            "track_id":   str(track_id),
+            "class_name": type_,
+            "x":          z_cam,
+            "y":          -x_cam,
+            "yaw":        -ry,
+            "length":     l,
+            "width":      w,
+            "height":     h,
+        })
+    return frames
+
+
+def _build_metrics_dict(metrics: dict) -> dict:
+    return {
+        "mota":       round(metrics["mota"], 4),
+        "motp":       round(metrics["motp"], 4),
+        "id_switches": metrics["id_switches"],
+        "precision":  round(metrics["precision"], 4),
+        "recall":     round(metrics["recall"], 4),
+        "tp":         metrics["tp"],
+        "fp":         metrics["fp"],
+        "fn":         metrics["fn"],
+        "n_frames":   metrics["n_frames"],
+        "total_gt":   metrics["total_gt"],
+    }
+
+
+def run_demo_kitti(kitti_content: str, params_json: str) -> str:
+    """
+    Run tracker on a KITTI tracking label file.
+
+    Args:
+        kitti_content : raw text content of the label file (e.g. label_02/0000.txt)
+        params_json   : same parameter JSON as run_demo()
+
+    Returns:
+        Same JSON format as run_demo() — compatible with the JS visualizer.
+
+    Notes:
+        - KITTI labels are used as ground truth (GT).
+        - Noisy detections are synthesised from GT so that the noise/detection-rate
+          sliders still work meaningfully.
+        - Frame indices follow the file (0-indexed, may be sparse).
+    """
+    params = json.loads(params_json)
+    min_hits  = int(params.get("min_hits_to_confirm", 3))
+    max_misses = int(params.get("max_misses_to_lose", 5))
+    max_dist  = float(params.get("max_distance", 10.0))
+    pos_noise = float(params.get("pos_noise_std", 0.3))
+    det_rate  = float(params.get("detection_rate", 1.0))
+    seed      = int(params.get("seed", 42))
+    dt        = 0.1
+
+    kitti_frames = _parse_kitti_text(kitti_content)
+    if not kitti_frames:
+        return json.dumps({"error": "ファイルに有効な KITTI データが見つかりませんでした。",
+                           "frames": [], "metrics": {}})
+
+    n_frames = max(kitti_frames.keys()) + 1
+    rng = random.Random(seed)
+    parser = DictParser()
+    tracker = MultiObjectTracker(
+        filter_factory=VehicleTracker,
+        association=HungarianAssociation(_euclidean, max_distance=max_dist),
+        config=TrackingConfig(min_hits_to_confirm=min_hits, max_misses_to_lose=max_misses),
+    )
+    evaluator = MOTEvaluator(match_threshold=max(2.0, max_dist * 0.5))
+
+    frames_out = []
+    all_gx, all_gy = [], []
+
+    for f in range(n_frames):
+        boxes = kitti_frames.get(f, [])
+
+        # GT dicts (exact KITTI labels, with object_id = track_id for IDSW tracking)
+        gt_dicts = [{
+            "object_id": b["track_id"],
+            "x": b["x"], "y": b["y"], "yaw": b["yaw"],
+            "length": b["length"], "width": b["width"], "height": b["height"],
+            "class_name": b["class_name"],
+            "timestamp": f * dt, "frame_id": "map",
+        } for b in boxes]
+
+        # Noisy detections synthesised from GT (simulate a detector)
+        det_dicts = []
+        for b in boxes:
+            if rng.random() > det_rate:
+                continue
+            det_dicts.append({
+                "x":   b["x"] + rng.gauss(0, pos_noise),
+                "y":   b["y"] + rng.gauss(0, pos_noise),
+                "yaw": b["yaw"] + rng.gauss(0, 0.05),
+                "length": b["length"], "width": b["width"], "height": b["height"],
+                "class_name": b["class_name"],
+                "timestamp": f * dt, "frame_id": "map",
+            })
+
+        gt_dets = parser.parse(gt_dicts) if gt_dicts else []
+        tracks  = tracker.update(parser.parse(det_dicts) if det_dicts else [], dt=dt)
+        evaluator.update(gt_dets, tracks)
+
+        gt_list = []
+        for g in gt_dets:
+            x, y, _ = g.get_position()
+            all_gx.append(x)
+            all_gy.append(y)
+            gt_list.append({
+                "id": g.get_object_id(),
+                "x": round(x, 3), "y": round(y, 3),
+                "yaw": round(g.get_yaw(), 4),
+                "l": round(g.get_dimensions()[0], 2),
+                "w": round(g.get_dimensions()[1], 2),
+            })
+
+        track_list = []
+        for t in tracks:
+            kin = t.get_current_kinematic()
+            x, y, _ = kin.position
+            track_list.append({
+                "id": t.get_track_id()[:8],
+                "x": round(x, 3), "y": round(y, 3),
+                "yaw": round(kin.get_yaw(), 4),
+                "l": round(t.get_geometric_info().dimensions[0], 2),
+                "w": round(t.get_geometric_info().dimensions[1], 2),
+                "confirmed": t.is_confirmed,
+                "age": t.age,
+            })
+
+        frames_out.append({"frame_idx": f, "gt": gt_list, "tracks": track_list})
+
+    metrics = evaluator.compute()
+    pad = 15.0
+    bounds = {
+        "x_min": (min(all_gx) - pad) if all_gx else -50.0,
+        "x_max": (max(all_gx) + pad) if all_gx else 50.0,
+        "y_min": (min(all_gy) - pad) if all_gy else -20.0,
+        "y_max": (max(all_gy) + pad) if all_gy else 20.0,
+    }
+    return json.dumps({"bounds": bounds, "frames": frames_out,
+                       "metrics": _build_metrics_dict(metrics)})
